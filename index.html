@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spent">
+<meta name="theme-color" content="#0f0f0f">
+<title>Spent — Personal Finance</title>
+<link rel="manifest" href="/spent-app/manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--border:rgba(255,255,255,0.08);
+    --text:#f0ede8;--text2:rgba(240,237,232,0.5);--text3:rgba(240,237,232,0.25);
+    --accent:#e8d5b0;--green:#7cb987;--red:#e07070;--blue:#7aabce;--amber:#e0a855;--purple:#a99bce;
+    --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
+  #app{display:flex;flex-direction:column;height:100vh;height:-webkit-fill-available;}
+
+  /* Header */
+  .header{padding:calc(var(--safe-top) + 16px) 20px 14px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;}
+  .header-top{display:flex;justify-content:space-between;align-items:center;}
+  .app-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--accent);letter-spacing:-0.5px;}
+  .month-switcher{display:flex;align-items:center;gap:8px;}
+  .month-arrow{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:2px 6px;}
+  .month-label{font-size:12px;font-weight:500;color:var(--text2);min-width:80px;text-align:center;}
+  .budget-row{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px;}
+  .budget-spent{font-size:20px;font-weight:300;}
+  .budget-right{text-align:right;}
+  .budget-remain{font-size:12px;font-weight:500;}
+  .per-day{font-size:11px;color:var(--text3);margin-top:1px;}
+  .budget-track{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+  .budget-fill{height:100%;border-radius:2px;background:var(--accent);transition:width 0.4s;}
+
+  /* Nav */
+  .nav{display:flex;background:var(--surface);border-top:1px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0;}
+  .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0;font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0.05em;text-transform:uppercase;border:none;background:none;cursor:pointer;transition:color 0.2s;}
+  .nav-btn.active{color:var(--accent);}
+  .nav-icon{font-size:17px;line-height:1;}
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .page{display:none;padding:16px 20px;padding-bottom:calc(var(--safe-bot) + 20px);}
+  .page.active{display:block;}
+  .slabel{font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;margin-top:20px;}
+  .slabel:first-child{margin-top:0;}
+
+  /* Category cards */
+  .cat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:8px;}
+  .cat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+  .cat-left{display:flex;align-items:center;gap:9px;}
+  .cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .cat-name{font-size:13px;}
+  .cat-spent{font-size:13px;font-weight:500;}
+  .cat-sub{font-size:10px;color:var(--text2);margin-top:1px;}
+  .cat-bar{height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;}
+  .cat-bar-fill{height:100%;border-radius:1px;transition:width 0.4s;}
+
+  /* Transactions */
+  .txn-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+  .txn-item:last-child{border-bottom:none;}
+  .txn-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+  .txn-info{flex:1;min-width:0;margin:0 9px;}
+  .txn-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .txn-meta{font-size:11px;color:var(--text2);margin-top:1px;}
+  .txn-amt{font-size:13px;font-weight:500;flex-shrink:0;}
+  .txn-del{color:var(--text3);font-size:20px;cursor:pointer;padding:2px 4px;margin-left:5px;flex-shrink:0;}
+
+  /* Upload */
+  .upload-zone{background:var(--surface);border:1.5px dashed rgba(232,213,176,0.25);border-radius:16px;padding:30px 20px;text-align:center;margin-bottom:14px;cursor:pointer;transition:all 0.2s;}
+  .upload-zone:active{background:var(--surface2);}
+  .upload-icon{font-size:34px;margin-bottom:8px;}
+  .upload-title{font-size:14px;font-weight:500;color:var(--accent);margin-bottom:5px;}
+  .upload-sub{font-size:12px;color:var(--text2);line-height:1.5;}
+  #fileInput{display:none;}
+  .proc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .proc-title{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .spinner{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .parsed-txn{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .parsed-txn:last-child{border-bottom:none;}
+  .pcheck{width:20px;height:20px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:2px;transition:all 0.15s;}
+  .pcheck.checked{background:var(--green);border-color:var(--green);color:#0f0f0f;}
+  .pinfo{flex:1;min-width:0;}
+  .pname{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pdate{font-size:11px;color:var(--text2);margin-top:1px;}
+  .pill-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+  .cpill{font-size:10px;padding:2px 7px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all 0.15s;}
+  .cpill.sel{background:rgba(232,213,176,0.1);border-color:rgba(232,213,176,0.3);color:var(--accent);}
+  .pamt{font-size:13px;font-weight:500;flex-shrink:0;margin-top:2px;}
+  .import-btn{width:100%;padding:13px;border-radius:12px;background:var(--accent);color:#0f0f0f;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;}
+  .import-btn:disabled{opacity:0.35;}
+
+  /* Trends page */
+  .trend-bar-wrap{margin-bottom:6px;}
+  .trend-month{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .trend-label{font-size:12px;color:var(--text2);width:36px;flex-shrink:0;}
+  .trend-bar-bg{flex:1;height:28px;background:var(--surface2);border-radius:6px;overflow:hidden;position:relative;}
+  .trend-bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:10px;font-size:11px;font-weight:500;color:#0f0f0f;transition:width 0.6s ease;min-width:2px;}
+  .trend-amt{font-size:12px;font-weight:500;width:70px;text-align:right;flex-shrink:0;}
+  .trend-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+  .trend-title{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;font-size:10px;}
+  .cat-trend-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+  .cat-trend-row:last-child{border-bottom:none;}
+  .ct-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .ct-name{font-size:12px;flex:1;}
+  .ct-bars{display:flex;gap:3px;align-items:flex-end;height:20px;}
+  .ct-bar{width:16px;border-radius:2px 2px 0 0;}
+  .ct-amt{font-size:12px;font-weight:500;width:55px;text-align:right;flex-shrink:0;}
+
+  /* Settings */
+  .srow{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;}
+  .slabel-main{font-size:14px;}
+  .slabel-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+  .sinput{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;width:110px;text-align:right;outline:none;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;}
+  .stat-val{font-size:19px;font-weight:300;margin-bottom:2px;}
+  .stat-lbl{font-size:11px;color:var(--text2);}
+  .danger-btn{width:100%;padding:12px;border-radius:12px;background:rgba(224,112,112,0.1);border:1px solid rgba(224,112,112,0.2);color:var(--red);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:4px;}
+  .empty{text-align:center;padding:36px 20px;color:var(--text3);font-size:13px;}
+  .toast{position:fixed;bottom:calc(var(--safe-bot) + 68px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:8px 16px;font-size:12px;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;z-index:100;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">Spent</div>
+      <div class="month-switcher">
+        <button class="month-arrow" onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="monthLabel">Apr 2026</div>
+        <button class="month-arrow" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="budget-row">
+      <div class="budget-spent">$<span id="totalSpent">0.00</span> <span style="font-size:13px;color:var(--text2)">spent</span></div>
+      <div class="budget-right">
+        <div class="budget-remain" id="remainEl">$0.00 left</div>
+        <div class="per-day" id="perDayEl"></div>
+      </div>
+    </div>
+    <div class="budget-track"><div class="budget-fill" id="budgetFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="content">
+    <div class="page active" id="page-overview">
+      <div class="slabel">By category</div>
+      <div id="catList"></div>
+      <div class="slabel">Recent</div>
+      <div id="recentTxns"></div>
+    </div>
+
+    <div class="page" id="page-add">
+      <input type="file" id="fileInput" accept="image/*" multiple>
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📸</div>
+        <div class="upload-title">Upload bank screenshots</div>
+        <div class="upload-sub">Pick screenshots from your camera roll.<br>Claude will read and categorise everything.</div>
+      </div>
+      <div id="parsedResults"></div>
+    </div>
+
+    <div class="page" id="page-trends">
+      <div class="slabel">Monthly spending</div>
+      <div class="trend-card" id="monthlyBars"></div>
+      <div class="slabel">Category trends</div>
+      <div class="trend-card" id="catTrends"></div>
+    </div>
+
+    <div class="page" id="page-txns">
+      <div class="slabel">All transactions</div>
+      <div id="allTxns"></div>
+    </div>
+
+    <div class="page" id="page-settings">
+      <div class="slabel">Budget</div>
+      <div class="srow">
+        <div><div class="slabel-main">Monthly budget</div><div class="slabel-sub">Personal spending limit</div></div>
+        <input class="sinput" type="number" id="setBudget" onchange="saveBudget()">
+      </div>
+      <div class="slabel">This month</div>
+      <div class="stat-grid" id="summaryStats"></div>
+      <div class="slabel">Data</div>
+      <button class="danger-btn" onclick="clearMonth()">Clear this month's data</button>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('overview',this)"><span class="nav-icon">◎</span>Overview</button>
+    <button class="nav-btn" onclick="showPage('add',this)"><span class="nav-icon">+</span>Add</button>
+    <button class="nav-btn" onclick="showPage('trends',this)"><span class="nav-icon">↗</span>Trends</button>
+    <button class="nav-btn" onclick="showPage('txns',this)"><span class="nav-icon">≡</span>All</button>
+    <button class="nav-btn" onclick="showPage('settings',this)"><span class="nav-icon">⚙</span>Settings</button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CATS=[
+  {id:'food',      name:'Food & Dining', color:'#7aabce',icon:'🍜'},
+  {id:'grocery',   name:'Groceries',     color:'#7cb987',icon:'🛒'},
+  {id:'health',    name:'Health',        color:'#ce7ab5',icon:'🏥'},
+  {id:'transport', name:'Transport',     color:'#e0a855',icon:'🚌'},
+  {id:'shopping',  name:'Shopping',      color:'#a99bce',icon:'🛍'},
+  {id:'subs',      name:'Subscriptions', color:'#888780',icon:'📱'},
+  {id:'household', name:'Household',     color:'#7aabce',icon:'🏠'},
+  {id:'work',      name:'Work Claim',    color:'#7aabce',icon:'💼'},
+  {id:'invest',    name:'Investments',   color:'#7cb987',icon:'📈'},
+  {id:'other',     name:'Other',         color:'#b4b2a9',icon:'•'},
+];
+// Categories excluded from personal budget
+const EXCL_BUDGET = ['work','invest'];
+
+const SEED = {
+  '2026_3': {
+    budget:2000,
+    transactions:[
+      // Food & Dining
+      {amount:49.39,desc:'FoodPanda',cat:'food',date:'2026-03-25'},
+      {amount:66.78,desc:'Din Tai Fung NEX',cat:'food',date:'2026-03-25'},
+      {amount:20.71,desc:'TS/Eat3Bowls NEX',cat:'food',date:'2026-03-28'},
+      {amount:11.80,desc:'NET*Subway Taman Jurong',cat:'food',date:'2026-03-27'},
+      {amount:8.20, desc:'Guzman y Gomez',cat:'food',date:'2026-03-27'},
+      {amount:8.20, desc:'Guzman y Gomez',cat:'food',date:'2026-03-31'},
+      {amount:4.85, desc:'MOS Burger NEX',cat:'food',date:'2026-03-23'},
+      {amount:8.90, desc:'McDonalds',cat:'food',date:'2026-03-31'},
+      {amount:5.70, desc:'Gokoku Japanese Bakery',cat:'food',date:'2026-03-26'},
+      {amount:44.00,desc:'Bengawan Solo NEX',cat:'food',date:'2026-03-10'},
+      {amount:12.10,desc:'TS/Eat3Bowls NEX',cat:'food',date:'2026-03-10'},
+      {amount:12.10,desc:'Champion Bolo Bun',cat:'food',date:'2026-03-14'},
+      {amount:2.60, desc:'Victoria Bakery & Cafe',cat:'food',date:'2026-03-07'},
+      {amount:4.00, desc:"Harry's Catering",cat:'food',date:'2026-03-07'},
+      {amount:8.00, desc:'Elaine Western Food',cat:'food',date:'2026-03-09'},
+      {amount:2.10, desc:'Bread Code KB',cat:'food',date:'2026-03-04'},
+      {amount:72.00,desc:'Tigerflora Trading x2',cat:'food',date:'2026-03-03'},
+      {amount:16.70,desc:'Grab (food)',cat:'food',date:'2026-03-02'},
+      {amount:17.37,desc:'Grab (food)',cat:'food',date:'2026-03-05'},
+      {amount:9.65, desc:'Grab (food)',cat:'food',date:'2026-03-10'},
+      // Groceries
+      {amount:9.60, desc:'NTUC FP-Serangoon Ctrl',cat:'grocery',date:'2026-03-20'},
+      {amount:3.75, desc:'NTUC FP-Kallang Bahru',cat:'grocery',date:'2026-03-19'},
+      {amount:3.75, desc:'NTUC FP-Kallang Bahru',cat:'grocery',date:'2026-03-20'},
+      {amount:3.75, desc:'NTUC FP-Kallang Bahru',cat:'grocery',date:'2026-03-23'},
+      {amount:16.89,desc:'NTUC FP-Kallang Bahru',cat:'grocery',date:'2026-03-26'},
+      {amount:1.30, desc:'NTUC FP-Serangoon Ctrl',cat:'grocery',date:'2026-03-16'},
+      {amount:10.18,desc:'FairPrice Xtra-NEX Mal',cat:'grocery',date:'2026-03-17'},
+      {amount:6.38, desc:'FairPrice Xtra-NEX Mal',cat:'grocery',date:'2026-03-12'},
+      {amount:3.65, desc:'Giant-Serangoon',cat:'grocery',date:'2026-03-20'},
+      {amount:13.60,desc:'Giant-Serangoon',cat:'grocery',date:'2026-03-30'},
+      {amount:2.55, desc:'Cold Storage NEX',cat:'grocery',date:'2026-03-28'},
+      {amount:18.00,desc:'Little Farms',cat:'grocery',date:'2026-03-15'},
+      {amount:19.20,desc:'SKP Pte Ltd (NETS QR)',cat:'grocery',date:'2026-03-03'},
+      {amount:8.80, desc:'Heng Eng Boon Supermarts',cat:'grocery',date:'2026-03-05'},
+      {amount:9.77, desc:'7-Eleven Serangoon',cat:'grocery',date:'2026-03-17'},
+      {amount:1.00, desc:'7-Eleven Geylang',cat:'grocery',date:'2026-03-16'},
+      {amount:3.80, desc:'7-Eleven Serangoon',cat:'grocery',date:'2026-03-16'},
+      {amount:3.10, desc:'7-Eleven Serangoon Cen',cat:'grocery',date:'2026-03-17'},
+      {amount:5.20, desc:'7-Eleven Serangoon',cat:'grocery',date:'2026-03-22'},
+      // Health — personal only (excl work claims)
+      {amount:699.00,desc:'Oriental Remedies (Thomson)',cat:'health',date:'2026-03-10'},
+      {amount:10.20, desc:'Greenlife Dental (personal)',cat:'health',date:'2026-03-12'},
+      {amount:81.75, desc:'Greenlife Dental (personal)',cat:'health',date:'2026-03-19'},
+      {amount:10.50, desc:'Watsons Marina Square',cat:'health',date:'2026-03-09'},
+      {amount:3.60,  desc:'Guardian Serangoon NEX',cat:'health',date:'2026-03-21'},
+      {amount:80.00, desc:'Ombre Concepts (hair)',cat:'health',date:'2026-03-15'},
+      {amount:35.00, desc:'Elegant Hair Studio MH',cat:'health',date:'2026-03-21'},
+      // Transport — personal only
+      {amount:16.55,desc:'BUS/MRT',cat:'transport',date:'2026-03-12'},
+      {amount:15.30,desc:'BUS/MRT',cat:'transport',date:'2026-03-17'},
+      {amount:15.17,desc:'BUS/MRT',cat:'transport',date:'2026-03-23'},
+      {amount:10.79,desc:'TADA ride',cat:'transport',date:'2026-03-22'},
+      {amount:17.52,desc:'TADA ride',cat:'transport',date:'2026-03-21'},
+      {amount:13.95,desc:'TADA ride',cat:'transport',date:'2026-03-24'},
+      {amount:11.40,desc:'TADA ride',cat:'transport',date:'2026-03-27'},
+      {amount:26.93,desc:'TADA ride',cat:'transport',date:'2026-03-29'},
+      {amount:26.11,desc:'TADA ride',cat:'transport',date:'2026-03-29'},
+      {amount:15.85,desc:'Grab ride',cat:'transport',date:'2026-03-28'},
+      {amount:32.29,desc:'Grab ride',cat:'transport',date:'2026-03-29'},
+      // Shopping — personal only
+      {amount:333.00,desc:'SOAMI Atelier Singapore',cat:'shopping',date:'2026-03-21'},
+      {amount:170.00,desc:'Isetan Serangoon Ctr',cat:'shopping',date:'2026-03-25'},
+      {amount:49.90, desc:'Shopee Singapore MP',cat:'shopping',date:'2026-03-22'},
+      {amount:52.00, desc:'Shopee Singapore MP',cat:'shopping',date:'2026-03-19'},
+      {amount:6.74,  desc:'Shopee Singapore MP',cat:'shopping',date:'2026-03-19'},
+      {amount:3.16,  desc:'Shopee Singapore MP',cat:'shopping',date:'2026-03-20'},
+      {amount:52.51, desc:'Shopee Singapore MP',cat:'shopping',date:'2026-03-03'},
+      // Subscriptions — personal only
+      {amount:30.00, desc:'Claude.ai Subscription',cat:'subs',date:'2026-03-28'},
+      {amount:22.98, desc:'Netflix.com',cat:'subs',date:'2026-03-21'},
+      {amount:7.47,  desc:'Apple.com/Bill',cat:'subs',date:'2026-03-27'},
+      {amount:41.39, desc:'Apple.com/Bill (EVOL)',cat:'subs',date:'2026-03-16'},
+      {amount:119.04,desc:'M1 Limited M1APP+',cat:'subs',date:'2026-03-08'},
+      {amount:5.00,  desc:'Lisa-K Payhip',cat:'subs',date:'2026-03-22'},
+      // Travel (friend paid back)
+      {amount:297.15,desc:'Flyscoot (reimbursed by friend)',cat:'other',date:'2026-03-11'},
+      // Investments
+      {amount:1300.00,desc:'iFAST Financial (GIRO)',   cat:'invest',date:'2026-03-04'},
+      {amount:200.00, desc:'Amova STI ETF (Regular Plan)',cat:'invest',date:'2026-03-16'},
+      {amount:275.00,desc:'Shopee (work items)',cat:'work',date:'2026-03-19'},
+      {amount:150.00,desc:'Greenlife Dental (claimed)',cat:'work',date:'2026-03-12'},
+      {amount:121.38,desc:'Mailchimp',cat:'work',date:'2026-03-08'},
+      {amount:27.74, desc:'Transport (work trips)',cat:'work',date:'2026-03-15'},
+    ]
+  },
+  '2026_4': {
+    budget:2800,
+    transactions:[
+      {amount:2.20,  desc:'Mr Bean Pancake',           cat:'food',      date:'2026-04-01'},
+      {amount:13.98, desc:'Apple.com/Bill',             cat:'subs',      date:'2026-04-01'},
+      {amount:0.13,  desc:'CCY Conversion Fee (Apple)', cat:'subs',      date:'2026-04-02'},
+      {amount:18.79, desc:'NTUC FP-Serangoon Ctrl',     cat:'grocery',   date:'2026-04-01'},
+      {amount:3.00,  desc:'BUS/MRT',                    cat:'transport', date:'2026-04-02'},
+      {amount:97.12, desc:'Shopee (work)',               cat:'work',      date:'2026-04-02'},
+      {amount:57.16, desc:'Shopee (work)',               cat:'work',      date:'2026-04-02'},
+      {amount:82.60, desc:'SP Klarra (clothes)',         cat:'shopping',  date:'2026-04-04'},
+      {amount:10.98, desc:'Apple.com/Bill',             cat:'subs',      date:'2026-04-04'},
+      {amount:0.10,  desc:'CCY Conversion Fee (Apple)', cat:'subs',      date:'2026-04-06'},
+      {amount:8.30,  desc:'Guzman y Gomez',             cat:'food',      date:'2026-04-04'},
+      {amount:7.50,  desc:'Kuriya Japanese Market',     cat:'food',      date:'2026-04-04'},
+      {amount:1.00,  desc:'7-Eleven Serangoon',         cat:'grocery',   date:'2026-04-04'},
+      {amount:12.73, desc:'TADA ride',                  cat:'transport', date:'2026-04-04'},
+      {amount:14.60, desc:'FoodPanda',                  cat:'food',      date:'2026-04-05'},
+      {amount:4.50,  desc:'Jalan Batu Kway Chap',       cat:'food',      date:'2026-04-05'},
+      {amount:1.89,  desc:'HitPay (food)',              cat:'food',      date:'2026-04-05'},
+      {amount:3.75,  desc:'NTUC FP-Kallang Bahru',      cat:'grocery',   date:'2026-04-06'},
+      {amount:3.10,  desc:'Grab ride',                  cat:'transport', date:'2026-04-06'},
+      {amount:23.20, desc:'Grab ride',                  cat:'transport', date:'2026-04-06'},
+      {amount:13.90, desc:'Grab ride',                  cat:'transport', date:'2026-04-06'},
+      {amount:10.70, desc:'Grab ride',                  cat:'transport', date:'2026-04-06'},
+      {amount:13.65, desc:'TADA ride',                  cat:'transport', date:'2026-04-06'},
+      {amount:49.56, desc:'Shopee Singapore MP',        cat:'shopping',  date:'2026-04-06'},
+      {amount:75.00, desc:'Clothes (PayNow to Pei)',    cat:'shopping',  date:'2026-04-07'},
+      {amount:6.00,  desc:'PayNow to Wang Cailing (food)',cat:'food',    date:'2026-04-07'},
+      {amount:3.75,  desc:'NTUC FP-Kallang Bahru',      cat:'grocery',   date:'2026-04-07'},
+      {amount:14.11, desc:'FairPrice Xtra-NEX Mal',     cat:'grocery',   date:'2026-04-07'},
+      {amount:3.90,  desc:'7-Eleven Geylang',           cat:'grocery',   date:'2026-04-07'},
+      {amount:3.00,  desc:'BUS/MRT',                    cat:'transport', date:'2026-04-07'},
+      {amount:122.58,desc:'Mailchimp',                  cat:'work',      date:'2026-04-08'},
+      {amount:9.52,  desc:'FoodPanda',                  cat:'food',      date:'2026-04-08'},
+      {amount:3.75,  desc:'NTUC FP-Serangoon Ctrl',     cat:'grocery',   date:'2026-04-08'},
+      {amount:12.90, desc:'Guzman y Gomez',             cat:'food',      date:'2026-04-10'},
+      {amount:3.75,  desc:'NTUC FP-Kallang Bahru',      cat:'grocery',   date:'2026-04-09'},
+      {amount:219.00,desc:'Grab (office expenses)',     cat:'work',      date:'2026-04-09'},
+      {amount:16.00, desc:'Grab ride',                  cat:'transport', date:'2026-04-09'},
+      {amount:3.75,  desc:'NTUC FP-Kallang Bahru',      cat:'grocery',   date:'2026-04-10'},
+      {amount:8.00,  desc:'PayLah top-up (food)',       cat:'food',      date:'2026-04-10'},
+      {amount:102.16,desc:'M1 APP+',                    cat:'household', date:'2026-04-12'},
+      {amount:2000.00,desc:'iFAST Financial (GIRO)',    cat:'invest',date:'2026-04-08'},
+      {amount:200.00, desc:'Amova STI ETF (Regular Plan)',cat:'invest',date:'2026-04-15'},
+      {amount:1250.00,desc:'Gym — 10 sessions',         cat:'health',    date:'2026-04-10'},
+      {amount:106.00,desc:'SKINGO!-NEX (facial)',        cat:'health',    date:'2026-04-11'},
+      {amount:5.10,  desc:'Gokoku Japanese Bakery',     cat:'food',      date:'2026-04-11'},
+      {amount:3.00,  desc:'BUS/MRT',                    cat:'transport', date:'2026-04-11'},
+      {amount:2000.00,desc:'iFAST Financial (GIRO)',    cat:'invest',    date:'2026-04-08'},
+      {amount:200.00, desc:'Amova STI ETF (Regular Plan)',cat:'invest',  date:'2026-04-15'},
+    ]
+  }
+};
+
+// Current viewed month
+let viewYear = new Date().getFullYear();
+let viewMonth = new Date().getMonth()+1;
+
+function getKey(y,m){ return `spent_${y}_${m}`; }
+function getCurrentKey(){ return getKey(viewYear,viewMonth); }
+
+function getData(y,m){
+  const k = getKey(y,m);
+  const raw = localStorage.getItem(k);
+  if(raw){
+    const d = JSON.parse(raw);
+    // Migration: ensure invest transactions exist for seeded months
+    const seedKey = `${y}_${m}`;
+    if(SEED[seedKey]){
+      const seedInvest = SEED[seedKey].transactions.filter(t=>t.cat==='invest');
+      seedInvest.forEach(si=>{
+        if(!d.transactions.some(t=>t.cat==='invest'&&t.desc===si.desc)){
+          d.transactions.push(si);
+        }
+      });
+      localStorage.setItem(k,JSON.stringify(d));
+    }
+    return d;
+  }
+  const seed = SEED[`${y}_${m}`];
+  if(seed){ localStorage.setItem(k,JSON.stringify(seed)); return seed; }
+  return {budget:2800,transactions:[]};
+}
+function saveData(d,y,m){ localStorage.setItem(getKey(y||viewYear,m||viewMonth),JSON.stringify(d)); }
+function fmt(n){ return (+n).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function changeMonth(dir){
+  viewMonth+=dir;
+  if(viewMonth>12){viewMonth=1;viewYear++;}
+  if(viewMonth<1){viewMonth=12;viewYear--;}
+  render();
+}
+
+function isCurrentMonth(){
+  const n=new Date(); return viewYear===n.getFullYear()&&viewMonth===n.getMonth()+1;
+}
+
+function render(){
+  const d = getData(viewYear,viewMonth);
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('monthLabel').textContent = `${months[viewMonth-1]} ${viewYear}`;
+  document.getElementById('setBudget').value = d.budget;
+
+  // Auto-add recurring investments for months not in SEED
+  const isSeedMonth = !!SEED[`${viewYear}_${viewMonth}`];
+  if(!isSeedMonth){
+    const hasIfast=d.transactions.some(t=>t.cat==='invest'&&t.desc.includes('iFAST'));
+    const hasEtf=d.transactions.some(t=>t.cat==='invest'&&t.desc.includes('ETF'));
+    if(!hasIfast) d.transactions.push({amount:2000,desc:'iFAST Financial (GIRO)',cat:'invest',date:`${viewYear}-${String(viewMonth).padStart(2,'0')}-05`});
+    if(!hasEtf)   d.transactions.push({amount:200, desc:'Amova STI ETF (Regular Plan)',cat:'invest',date:`${viewYear}-${String(viewMonth).padStart(2,'0')}-15`});
+    if(!hasIfast||!hasEtf) saveData(d);
+  }
+
+  const personalSpend = d.transactions.filter(t=>!EXCL_BUDGET.includes(t.cat)).reduce((s,t)=>s+t.amount,0);
+  const workTotal  = d.transactions.filter(t=>t.cat==='work').reduce((s,t)=>s+t.amount,0);
+  const investTotal= d.transactions.filter(t=>t.cat==='invest').reduce((s,t)=>s+t.amount,0);
+  const remain = d.budget - personalSpend;
+  const pct = Math.min(personalSpend/d.budget*100,100).toFixed(1);
+
+  document.getElementById('totalSpent').textContent = fmt(personalSpend);
+  document.getElementById('remainEl').textContent = `$${fmt(Math.abs(remain))} ${remain<0?'over':'left'}`;
+  document.getElementById('remainEl').style.color = remain<0?'var(--red)':remain<d.budget*0.15?'var(--amber)':'var(--green)';
+  document.getElementById('budgetFill').style.width = pct+'%';
+  document.getElementById('budgetFill').style.background = remain<0?'var(--red)':remain<d.budget*0.15?'var(--amber)':'var(--accent)';
+
+  if(isCurrentMonth()){
+    const n=new Date(); const daysLeft=new Date(n.getFullYear(),n.getMonth()+1,0).getDate()-n.getDate();
+    document.getElementById('perDayEl').textContent = daysLeft>0?`$${fmt(remain/daysLeft)}/day · ${daysLeft} days left`:'';
+  } else { document.getElementById('perDayEl').textContent=''; }
+
+  // Categories
+  const catData = CATS.map(c=>({...c,spent:d.transactions.filter(t=>t.cat===c.id).reduce((s,t)=>s+t.amount,0)})).filter(c=>c.spent>0).sort((a,b)=>b.spent-a.spent);
+  const maxSpent = Math.max(...catData.map(c=>c.spent),1);
+  document.getElementById('catList').innerHTML = catData.length ? catData.map(c=>{
+    const p=Math.min(c.spent/maxSpent*100,100).toFixed(1);
+    const isWork=c.id==='work'; const isInvest=c.id==='invest';
+    const color = isWork?'var(--blue)':isInvest?'var(--green)':'var(--text)';
+    const sub = isWork?'to claim':isInvest?'not in budget':'';
+    return `<div class="cat-card">
+      <div class="cat-row">
+        <div class="cat-left"><span class="cat-dot" style="background:${c.color}"></span><span class="cat-name">${c.name}</span></div>
+        <div style="text-align:right"><div class="cat-spent" style="color:${color}">$${fmt(c.spent)}</div>${sub?`<div class="cat-sub">${sub}</div>`:''}</div>
+      </div>
+      <div class="cat-bar"><div class="cat-bar-fill" style="width:${p}%;background:${c.color}"></div></div>
+    </div>`;
+  }).join('') : '<div class="empty">No transactions yet</div>';
+
+  const recent=[...d.transactions].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+  renderTxnList('recentTxns',recent,d.transactions);
+  renderTxnList('allTxns',[...d.transactions].sort((a,b)=>new Date(b.date)-new Date(a.date)),d.transactions);
+
+  document.getElementById('summaryStats').innerHTML=`
+    <div class="stat-card"><div class="stat-val">$${fmt(personalSpend)}</div><div class="stat-lbl">Personal spent</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:${remain<0?'var(--red)':'var(--green)'}">${remain<0?'-':''}$${fmt(Math.abs(remain))}</div><div class="stat-lbl">${remain<0?'Over budget':'Remaining'}</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--blue)">$${fmt(workTotal)}</div><div class="stat-lbl">Work claims</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--green)">$${fmt(investTotal)}</div><div class="stat-lbl">Invested</div></div>`;
+
+  renderTrends();
+}
+
+function renderTxnList(elId,txns,allTxns){
+  const el=document.getElementById(elId);
+  if(!txns.length){el.innerHTML='<div class="empty">No transactions yet</div>';return;}
+  el.innerHTML=txns.map(t=>{
+    const cat=CATS.find(c=>c.id===t.cat)||CATS[8];
+    const date=new Date(t.date+'T00:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short'});
+    const idx=allTxns.indexOf(t);
+    return `<div class="txn-item">
+      <div class="txn-icon" style="background:${cat.color}22">${cat.icon}</div>
+      <div class="txn-info"><div class="txn-name">${t.desc}</div><div class="txn-meta">${date} · ${cat.name}</div></div>
+      <div class="txn-amt" style="color:${t.cat==='work'?'var(--blue)':t.cat==='invest'?'var(--green)':'var(--text)'}">$${fmt(t.amount)}</div>
+      <div class="txn-del" onclick="deleteTxn(${idx})">×</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTrends(){
+  // Get last 4 months of data
+  const months=[];
+  for(let i=3;i>=0;i--){
+    let m=viewMonth-i, y=viewYear;
+    if(m<1){m+=12;y--;}
+    const d=getData(y,m);
+    const spent=d.transactions.filter(t=>!EXCL_BUDGET.includes(t.cat)).reduce((s,t)=>s+t.amount,0);
+    const labels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    months.push({label:labels[m-1],spent,budget:d.budget,data:d});
+  }
+  const maxSpent=Math.max(...months.map(m=>m.spent),1);
+
+  document.getElementById('monthlyBars').innerHTML=`
+    <div class="trend-title">Personal spend — last 4 months</div>
+    ${months.map(m=>{
+      const w=Math.max(m.spent/maxSpent*100,1).toFixed(1);
+      const over=m.spent>m.budget;
+      return `<div class="trend-month">
+        <div class="trend-label">${m.label}</div>
+        <div class="trend-bar-bg">
+          <div class="trend-bar-fill" style="width:${w}%;background:${over?'var(--red)':'var(--accent)'}">
+            ${m.spent>200?'$'+fmt(m.spent):''}
+          </div>
+        </div>
+        <div class="trend-amt" style="color:${over?'var(--red)':'var(--text)'}">$${fmt(m.spent)}</div>
+      </div>`;
+    }).join('')}`;
+
+  // Category trends across months — exclude invest/work from trend bars
+  const topCats = CATS.filter(c=>!EXCL_BUDGET.includes(c.id)&&c.id!=='other').slice(0,6);
+  const maxCatSpend = Math.max(...topCats.map(c=>Math.max(...months.map(m=>m.data.transactions.filter(t=>t.cat===c.id).reduce((s,t)=>s+t.amount,0)))),1);
+
+  document.getElementById('catTrends').innerHTML=`
+    <div class="trend-title">Category breakdown — last 4 months</div>
+    ${topCats.map(c=>{
+      const catMonths=months.map(m=>m.data.transactions.filter(t=>t.cat===c.id).reduce((s,t)=>s+t.amount,0));
+      if(catMonths.every(v=>v===0)) return '';
+      const latest=catMonths[catMonths.length-1];
+      const barH=20;
+      return `<div class="cat-trend-row">
+        <span class="ct-dot" style="background:${c.color}"></span>
+        <span class="ct-name">${c.name}</span>
+        <div class="ct-bars">
+          ${catMonths.map(v=>`<div class="ct-bar" style="height:${Math.max(v/maxCatSpend*barH,1).toFixed(1)}px;background:${c.color};opacity:0.7"></div>`).join('')}
+        </div>
+        <div class="ct-amt">$${fmt(latest)}</div>
+      </div>`;
+    }).join('')}
+    <div style="font-size:10px;color:var(--text3);margin-top:10px;display:flex;gap:16px;">
+      ${months.map(m=>`<span>${m.label}</span>`).join('')}
+    </div>`;
+}
+
+function deleteTxn(idx){
+  if(!confirm('Delete this transaction?')) return;
+  const d=getData(viewYear,viewMonth); d.transactions.splice(idx,1); saveData(d); render(); showToast('Deleted');
+}
+function saveBudget(){
+  const v=parseFloat(document.getElementById('setBudget').value);
+  if(!v||v<=0) return; const d=getData(viewYear,viewMonth); d.budget=v; saveData(d); render(); showToast('Budget updated');
+}
+function clearMonth(){
+  if(!confirm('Clear all transactions for this month?')) return;
+  const d=getData(viewYear,viewMonth); d.transactions=[]; saveData(d); render(); showToast('Cleared');
+}
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  render();
+}
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// Screenshot upload
+let parsedItems=[];
+document.getElementById('fileInput').addEventListener('change',async function(e){
+  const files=Array.from(e.target.files);
+  if(!files.length) return;
+  const results=document.getElementById('parsedResults');
+  results.innerHTML=`<div class="proc-card"><div class="proc-title"><div class="spinner"></div>Reading ${files.length} screenshot${files.length>1?'s':''}...</div></div>`;
+  parsedItems=[];
+  for(const file of files){
+    const b64=await toBase64(file);
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          system:`Extract transactions from this bank/credit card screenshot. Return ONLY a JSON array, no markdown. Each item: {"desc":"merchant","amount":12.34,"date":"YYYY-MM-DD","cat":"food|grocery|health|transport|shopping|subs|household|work|other"}. Skip payments, credits, interest, fees, transfers. Use ${viewYear}-${String(viewMonth).padStart(2,'0')} if date is unclear. Mark work expenses (Mailchimp, Grab office, work supplies) as "work".`,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},
+            {type:'text',text:'Extract all expense transactions as JSON array.'}
+          ]}]
+        })
+      });
+      const data=await res.json();
+      const text=data.content?.[0]?.text||'[]';
+      const clean=text.replace(/```json|```/g,'').trim();
+      parsedItems.push(...JSON.parse(clean));
+    }catch(err){console.error(err);}
+  }
+  renderParsed();
+  this.value='';
+});
+
+function toBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function renderParsed(){
+  const results=document.getElementById('parsedResults');
+  if(!parsedItems.length){results.innerHTML='<div class="proc-card"><div style="font-size:13px;color:var(--text2)">No transactions found. Try a clearer screenshot.</div></div>';return;}
+  const checked=parsedItems.map(()=>true);
+  const cats=parsedItems.map(i=>i.cat||'other');
+  function rebuild(){
+    results.innerHTML=`<div class="proc-card">
+      <div class="proc-title" style="justify-content:space-between">
+        <span>${parsedItems.length} transactions found</span>
+        <span style="font-size:11px;color:var(--text2)">${checked.filter(Boolean).length} selected</span>
+      </div>
+      ${parsedItems.map((t,i)=>`<div class="parsed-txn">
+        <div class="pcheck ${checked[i]?'checked':''}" onclick="tc(${i})">${checked[i]?'✓':''}</div>
+        <div class="pinfo">
+          <div class="pname">${t.desc}</div>
+          <div class="pdate">${t.date} · $${fmt(t.amount)}</div>
+          <div class="pill-wrap">${CATS.map(c=>`<span class="cpill ${cats[i]===c.id?'sel':''}" onclick="sc(${i},'${c.id}')">${c.icon} ${c.name}</span>`).join('')}</div>
+        </div>
+        <div class="pamt">$${fmt(t.amount)}</div>
+      </div>`).join('')}
+    </div>
+    <button class="import-btn" onclick="doImport()" ${checked.filter(Boolean).length===0?'disabled':''}>Import ${checked.filter(Boolean).length} transactions</button>`;
+    window.tc=i=>{checked[i]=!checked[i];rebuild();};
+    window.sc=(i,c)=>{cats[i]=c;rebuild();};
+    window.doImport=()=>{
+      const d=getData(viewYear,viewMonth);
+      parsedItems.forEach((t,i)=>{if(checked[i]) d.transactions.push({...t,cat:cats[i]});});
+      saveData(d);render();
+      document.getElementById('parsedResults').innerHTML='';
+      parsedItems=[];
+      showToast('Imported!');
+      showPage('overview',document.querySelectorAll('.nav-btn')[0]);
+    };
+  }
+  rebuild();
+}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/spent-app/sw.js').catch(()=>{});
+render();
+</script>
+</body>
+</html>
